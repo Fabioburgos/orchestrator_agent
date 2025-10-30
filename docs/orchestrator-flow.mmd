@@ -1,0 +1,60 @@
+flowchart TD
+    Start(["Notificación Microsoft Graph API"]) --> Webhook["Webhook Event"]
+    Webhook --> Lambda["AWS Lambda<br/>handler.py"]
+    Lambda --> ValidateEnv["Validar Credenciales<br/>Azure OpenAI"]
+
+    ValidateEnv --> ExtractID["Extraer message_id<br/>del payload"]
+    ExtractID --> BuildGraph["Construir Workflow<br/>LangGraph"]
+
+    BuildGraph --> LoadTools["Cargar Herramientas MCP<br/>tool_loader.py"]
+    LoadTools --> ToolsBox["<b>MCP Servers:</b><br/>• Email tools<br/>• Classification<br/>• Folder management<br/>• Custom tools"]
+
+    ToolsBox --> InitState["Crear Estado Inicial<br/>AgentState"]
+    InitState --> StateBox["<b>Estado:</b><br/>• messages: []<br/>• message_id: string<br/>• original_notification: object"]
+
+    StateBox --> InitPrompt["Prompt Inicial:<br/>'Ha llegado una notificación de<br/>un nuevo email con ID {message_id}.<br/>Decide qué herramienta es adecuada...'"]
+
+    InitPrompt --> AgentLoop["<b>Agent Loop (ReAct Pattern)</b>"]
+
+    AgentLoop --> AgentNode["Agent Node<br/>LLM Reasoning"]
+    AgentNode --> AgentBox["<b>Azure OpenAI GPT-4:</b><br/>• Analiza contexto<br/>• Razona sobre acción<br/>• Decide herramienta<br/>• Temperature: 0"]
+
+    AgentBox --> Decision{"¿Tool Calls?"}
+
+    Decision -- "Sí" --> ToolNode["Tool Node<br/>Ejecutar Herramienta MCP"]
+    ToolNode --> ToolExec["<b>Ejecución:</b><br/>• get_email_content<br/>• classify_email<br/>• move_to_folder<br/>• send_response<br/>• etc."]
+
+    ToolExec --> ToolResult["Resultado de Tool"]
+    ToolResult --> UpdateState["Actualizar Estado<br/>con resultado"]
+    UpdateState --> AgentNode
+
+    Decision -- "No" --> EndLoop["Fin del Loop"]
+    EndLoop --> FinalState["Estado Final"]
+
+    FinalState --> Response["<b>Response Lambda:</b><br/>• Status: 200<br/>• Body: Result<br/>• Logs: Execution trace"]
+
+    Response --> APIGateway["API Gateway Response"]
+
+    style Start fill:#fff,stroke:#3b82f6,stroke-width:2px,color:#1e40af
+    style Webhook fill:#eff6ff,stroke:#3b82f6,stroke-width:2px,color:#1e3a8a
+    style Lambda fill:#ff9900,stroke:#ff6600,stroke-width:2px,color:#fff
+    style ValidateEnv fill:#f0fdf4,stroke:#10b981,stroke-width:2px,color:#065f46
+    style ExtractID fill:#faf5ff,stroke:#8b5cf6,stroke-width:2px,color:#5b21b6
+    style BuildGraph fill:#fff7ed,stroke:#f97316,stroke-width:2px,color:#9a3412
+    style LoadTools fill:#eff6ff,stroke:#3b82f6,stroke-width:2px,color:#1e3a8a
+    style ToolsBox fill:#fff,stroke:#93c5fd,stroke-width:1px,color:#1e3a8a
+    style InitState fill:#faf5ff,stroke:#8b5cf6,stroke-width:2px,color:#5b21b6
+    style StateBox fill:#fff,stroke:#c4b5fd,stroke-width:1px,color:#5b21b6
+    style InitPrompt fill:#f0fdf4,stroke:#10b981,stroke-width:2px,color:#065f46
+    style AgentLoop fill:#eef2ff,stroke:#6366f1,stroke-width:3px,color:#3730a3
+    style AgentNode fill:#eef2ff,stroke:#6366f1,stroke-width:2px,color:#3730a3
+    style AgentBox fill:#fff,stroke:#c7d2fe,stroke-width:1px,color:#3730a3
+    style Decision fill:#fffbeb,stroke:#f59e0b,stroke-width:2px,color:#78350f
+    style ToolNode fill:#fdf4ff,stroke:#ec4899,stroke-width:2px,color:#831843
+    style ToolExec fill:#fff,stroke:#f9a8d4,stroke-width:1px,color:#831843
+    style ToolResult fill:#f0fdf4,stroke:#10b981,stroke-width:2px,color:#065f46
+    style UpdateState fill:#faf5ff,stroke:#8b5cf6,stroke-width:2px,color:#5b21b6
+    style EndLoop fill:#fee2e2,stroke:#ef4444,stroke-width:2px,color:#991b1b
+    style FinalState fill:#f0fdf4,stroke:#10b981,stroke-width:2px,color:#065f46
+    style Response fill:#fff,stroke:#86efac,stroke-width:1px,color:#065f46
+    style APIGateway fill:#eff6ff,stroke:#3b82f6,stroke-width:2px,color:#1e3a8a
