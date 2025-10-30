@@ -106,12 +106,64 @@ Las herramientas se definen en `MCP_SERVERS_CONFIG`:
 }
 ```
 
+## Arquitectura del Grafo LangGraph
+
+El workflow implementa un grafo cíclico con 2 nodos:
+
+```
+┌─────────────────────────────────────────┐
+│          Entry Point: "agent"           │
+└──────────────┬──────────────────────────┘
+               │
+               ▼
+        ┌─────────────┐
+        │    agent    │ ← Nodo principal (LLM reasoning)
+        │   (async)   │
+        └──────┬──────┘
+               │
+        ┌──────▼──────────┐
+        │ should_continue │ ← Conditional edge
+        └──┬──────────┬───┘
+           │          │
+    ¿Tool calls?    No
+           │          │
+           ▼          ▼
+     ┌─────────┐   END
+     │  tools  │
+     └────┬────┘
+          │
+          └──► Regresa a "agent" (loop)
+```
+
+### Nodos del Grafo
+
+**1. Nodo "agent"** ([src/graph.py:22-43](src/graph.py#L22-L43))
+- Ejecuta `agent_node()` (función async)
+- Invoca Azure OpenAI GPT-4 con `model.ainvoke()`
+- Filtra mensajes huérfanos (ToolMessages sin tool_call previo)
+- Retorna respuesta del LLM con posibles tool_calls
+
+**2. Nodo "tools"** ([src/graph.py:12](src/graph.py#L12))
+- Ejecuta `ToolNode(tools)` de LangGraph
+- Ejecuta las herramientas MCP solicitadas por el agente
+- Retorna resultados como ToolMessages
+
+### Edges del Grafo
+
+**Entry Point**: `"agent"` - Primera ejecución comienza en el nodo agent
+
+**Conditional Edge**: `agent → should_continue()` ([src/graph.py:45-52](src/graph.py#L45-L52))
+- Si el último mensaje tiene `tool_calls`: → `"tools"`
+- Si no hay `tool_calls`: → `END`
+
+**Fixed Edge**: `tools → agent` - Siempre regresa al agente después de ejecutar tools
+
 ## Componentes Clave
 
 **[handler.py](handler.py)** - Lambda handler, procesa eventos Graph API
-**[src/graph.py](src/graph.py)** - Workflow ReAct con LangGraph
+**[src/graph.py](src/graph.py)** - Workflow ReAct con StateGraph de LangGraph
 **[src/tool_loader.py](src/tool_loader.py)** - Carga dinámica de herramientas MCP
-**[src/state.py](src/state.py)** - Schema de estado del agente
+**[src/state.py](src/state.py)** - Schema de estado del agente (AgentState)
 
 ## Troubleshooting
 
