@@ -1,4 +1,36 @@
-__pycache__/
-__pycache__/
-.env
+# Entornos virtuales
 venv/
+ENV/
+.env
+
+# Archivos de Python compilados
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Archivos de configuración del sistema
+.DS_Store
+Thumbs.db
+
+# Archivo de entorno
+.env
+
+# carpetas de datos
+data/
+tests/
+testing/
+exam.py
+benchmark.py
+subcategories.py
+requirements-local.txt
+
+# Logs
+*.log
+
+# Otros
+*.sqlite3
+
+# Archivos de configuración de contenedores
+Makefile
+verify-setup.sh
